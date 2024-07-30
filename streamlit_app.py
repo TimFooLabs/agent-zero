@@ -118,7 +118,10 @@ def main():
         with st.chat_message(message["role"]):
             st.write(message["content"])
             if "tokens" in message and "cost" in message:
-                st.caption(f"Tokens: {message['tokens']} | Cost: ${message['cost']:.4f}")
+                if "model" in message:
+                    st.caption(f"Model: {message['model']} | Tokens: {message['tokens']} | Cost: ${message['cost']:.4f}")
+                else:
+                    st.caption(f"Tokens: {message['tokens']} | Cost: ${message['cost']:.4f}")
 
     # Display total token usage and cost for the session
     st.sidebar.markdown("---")
@@ -143,9 +146,10 @@ def main():
                     "role": "assistant",
                     "content": response,
                     "tokens": tokens,
-                    "cost": cost
+                    "cost": cost,
+                    "model": agent.config.chat_model.__class__.__name__
                 })
-                st.caption(f"Tokens: {tokens} | Cost: ${cost:.4f}")
+                st.caption(f"Model: {agent.config.chat_model.__class__.__name__} | Tokens: {tokens} | Cost: ${cost:.4f}")
                 
                 # Update session totals
                 st.session_state.total_tokens += tokens
