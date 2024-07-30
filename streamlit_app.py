@@ -6,6 +6,7 @@ from python.helpers import files
 import os
 import uuid
 import json
+from datetime import datetime
 
 # Set the working directory
 os.chdir(files.get_abs_path("./work_dir"))
@@ -19,6 +20,12 @@ if 'total_tokens' not in st.session_state:
     st.session_state.total_tokens = 0
 if 'total_cost' not in st.session_state:
     st.session_state.total_cost = 0.0
+if 'conversations' not in st.session_state:
+    st.session_state.conversations = []
+
+# Create conversations directory if it doesn't exist
+conversations_dir = files.get_abs_path("conversations")
+os.makedirs(conversations_dir, exist_ok=True)
 
 def initialize_agent():
     config = AgentConfig(
@@ -39,9 +46,63 @@ def create_new_session():
     st.session_state.current_session_id = session_id
     st.session_state.total_tokens = 0
     st.session_state.total_cost = 0.0
+    
+    # Add new conversation to the list
+    new_conversation = {
+        'id': session_id,
+        'name': f"Conversation {len(st.session_state.conversations) + 1}",
+        'timestamp': datetime.now().isoformat()
+    }
+    st.session_state.conversations.append(new_conversation)
+    save_conversations()
+
+def save_conversations():
+    conversations_file = os.path.join(conversations_dir, "conversations.json")
+    with open(conversations_file, "w") as f:
+        json.dump(st.session_state.conversations, f)
+
+def load_conversations():
+    conversations_file = os.path.join(conversations_dir, "conversations.json")
+    if os.path.exists(conversations_file):
+        with open(conversations_file, "r") as f:
+            st.session_state.conversations = json.load(f)
+    else:
+        st.session_state.conversations = []
+
+def save_current_session():
+    if st.session_state.current_session_id:
+        session = st.session_state.sessions[st.session_state.current_session_id]
+        session_data = {
+            'id': st.session_state.current_session_id,
+            'chat_history': session['chat_history'],
+            'total_tokens': st.session_state.total_tokens,
+            'total_cost': st.session_state.total_cost
+        }
+        file_name = f"conversation_{st.session_state.current_session_id}.json"
+        with open(os.path.join(conversations_dir, file_name), "w") as f:
+            json.dump(session_data, f)
+
+def load_session(session_id):
+    file_name = f"conversation_{session_id}.json"
+    file_path = os.path.join(conversations_dir, file_name)
+    if os.path.exists(file_path):
+        with open(file_path, "r") as f:
+            session_data = json.load(f)
+        st.session_state.sessions[session_id] = {
+            'agent': initialize_agent(),
+            'chat_history': session_data['chat_history']
+        }
+        st.session_state.current_session_id = session_id
+        st.session_state.total_tokens = session_data['total_tokens']
+        st.session_state.total_cost = session_data['total_cost']
+    else:
+        st.error(f"Session file not found: {file_name}")
 
 def main():
     st.title("Agent Zero Streamlit Interface")
+
+    # Load existing conversations
+    load_conversations()
 
     # Create a new session if there are no sessions
     if not st.session_state.sessions:
@@ -49,23 +110,35 @@ def main():
 
     # Session management in the sidebar
     with st.sidebar:
-        st.header("Session Management")
+        st.header("Conversation Management")
         
-        # Button to create a new session
-        if st.button("New Session"):
+        # Button to create a new conversation
+        if st.button("New Conversation"):
             create_new_session()
         
-        # Dropdown to select existing sessions
-        session_options = list(st.session_state.sessions.keys())
-        selected_session = st.selectbox(
-            "Select a session",
-            session_options,
-            index=session_options.index(st.session_state.current_session_id) if st.session_state.current_session_id else 0
+        # Dropdown to select existing conversations
+        conversation_options = [conv['name'] for conv in st.session_state.conversations]
+        selected_conversation = st.selectbox(
+            "Select a conversation",
+            conversation_options,
+            index=conversation_options.index(next(conv['name'] for conv in st.session_state.conversations if conv['id'] == st.session_state.current_session_id)) if st.session_state.current_session_id else 0
         )
         
-        if selected_session != st.session_state.current_session_id:
-            st.session_state.current_session_id = selected_session
+        selected_session_id = next(conv['id'] for conv in st.session_state.conversations if conv['name'] == selected_conversation)
+        
+        if selected_session_id != st.session_state.current_session_id:
+            save_current_session()
+            load_session(selected_session_id)
             st.experimental_rerun()
+        
+        # Button to rename the current conversation
+        new_name = st.text_input("Rename conversation")
+        if st.button("Rename"):
+            for conv in st.session_state.conversations:
+                if conv['id'] == st.session_state.current_session_id:
+                    conv['name'] = new_name
+                    save_conversations()
+                    st.experimental_rerun()
 
     # Get the current session
     current_session = st.session_state.sessions[st.session_state.current_session_id]
@@ -154,6 +227,9 @@ def main():
                 # Update session totals
                 st.session_state.total_tokens += tokens
                 st.session_state.total_cost += cost
+                
+                # Save the current session
+                save_current_session()
                 
                 # Force a rerun to update the sidebar statistics
                 st.rerun()
