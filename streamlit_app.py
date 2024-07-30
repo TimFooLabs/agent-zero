@@ -7,6 +7,7 @@ import os
 import uuid
 import json
 from datetime import datetime
+import re
 
 # Set the working directory
 os.chdir(files.get_abs_path("./work_dir"))
@@ -47,14 +48,22 @@ def create_new_session():
     st.session_state.total_tokens = 0
     st.session_state.total_cost = 0.0
     
+    # Generate a short name for the conversation
+    short_name = generate_short_name()
+    
     # Add new conversation to the list
     new_conversation = {
         'id': session_id,
-        'name': f"Conversation {len(st.session_state.conversations) + 1}",
+        'name': short_name,
         'timestamp': datetime.now().isoformat()
     }
     st.session_state.conversations.append(new_conversation)
     save_conversations()
+
+def generate_short_name():
+    if st.session_state.conversations:
+        return f"Conversation {len(st.session_state.conversations) + 1}"
+    return "New Conversation"
 
 def save_conversations():
     conversations_file = os.path.join(conversations_dir, "conversations.json")
@@ -210,6 +219,10 @@ def main():
         with st.chat_message("user"):
             st.write(user_input)
 
+        # Update conversation name if it's the first message
+        if len(chat_history) == 1:
+            update_conversation_name(user_input)
+
         # Get agent response
         with st.chat_message("assistant"):
             with st.spinner("Agent is thinking..."):
@@ -233,6 +246,18 @@ def main():
                 
                 # Force a rerun to update the sidebar statistics
                 st.rerun()
+
+def update_conversation_name(user_input):
+    # Generate a short name based on the first user message
+    words = re.findall(r'\w+', user_input)
+    short_name = ' '.join(words[:3]) + '...' if len(words) > 3 else user_input
+    
+    # Update the conversation name
+    for conv in st.session_state.conversations:
+        if conv['id'] == st.session_state.current_session_id:
+            conv['name'] = short_name
+            save_conversations()
+            break
 
 if __name__ == "__main__":
     main()
