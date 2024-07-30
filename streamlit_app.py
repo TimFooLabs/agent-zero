@@ -78,34 +78,31 @@ def load_conversations():
     else:
         st.session_state.conversations = []
 
-def save_current_session():
-    if st.session_state.current_session_id:
-        session = st.session_state.sessions[st.session_state.current_session_id]
-        session_data = {
-            'id': st.session_state.current_session_id,
-            'chat_history': session['chat_history'],
+def save_current_conversation():
+    if st.session_state.current_conversation_id:
+        conversation_data = {
+            'id': st.session_state.current_conversation_id,
+            'chat_history': st.session_state.chat_history,
             'total_tokens': st.session_state.total_tokens,
             'total_cost': st.session_state.total_cost
         }
-        file_name = f"conversation_{st.session_state.current_session_id}.json"
+        file_name = f"conversation_{st.session_state.current_conversation_id}.json"
         with open(os.path.join(conversations_dir, file_name), "w") as f:
-            json.dump(session_data, f)
+            json.dump(conversation_data, f)
 
-def load_session(session_id):
-    file_name = f"conversation_{session_id}.json"
+def load_conversation(conversation_id):
+    file_name = f"conversation_{conversation_id}.json"
     file_path = os.path.join(conversations_dir, file_name)
     if os.path.exists(file_path):
         with open(file_path, "r") as f:
-            session_data = json.load(f)
-        st.session_state.sessions[session_id] = {
-            'agent': initialize_agent(),
-            'chat_history': session_data['chat_history']
-        }
-        st.session_state.current_session_id = session_id
-        st.session_state.total_tokens = session_data['total_tokens']
-        st.session_state.total_cost = session_data['total_cost']
+            conversation_data = json.load(f)
+        st.session_state.chat_history = conversation_data['chat_history']
+        st.session_state.current_conversation_id = conversation_id
+        st.session_state.total_tokens = conversation_data['total_tokens']
+        st.session_state.total_cost = conversation_data['total_cost']
+        st.session_state.agent = initialize_agent()
     else:
-        st.error(f"Session file not found: {file_name}")
+        st.error(f"Conversation file not found: {file_name}")
 
 def main():
     st.title("Agent Zero Streamlit Interface")
