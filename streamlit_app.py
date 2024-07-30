@@ -13,16 +13,18 @@ import re
 os.chdir(files.get_abs_path("./work_dir"))
 
 # Initialize session state
-if 'sessions' not in st.session_state:
-    st.session_state.sessions = {}
-if 'current_session_id' not in st.session_state:
-    st.session_state.current_session_id = None
+if 'current_conversation_id' not in st.session_state:
+    st.session_state.current_conversation_id = None
 if 'total_tokens' not in st.session_state:
     st.session_state.total_tokens = 0
 if 'total_cost' not in st.session_state:
     st.session_state.total_cost = 0.0
 if 'conversations' not in st.session_state:
     st.session_state.conversations = []
+if 'agent' not in st.session_state:
+    st.session_state.agent = None
+if 'chat_history' not in st.session_state:
+    st.session_state.chat_history = []
 
 # Create conversations directory if it doesn't exist
 conversations_dir = files.get_abs_path("conversations")
@@ -38,13 +40,11 @@ def initialize_agent():
     )
     return Agent(number=0, config=config)
 
-def create_new_session():
-    session_id = str(uuid.uuid4())
-    st.session_state.sessions[session_id] = {
-        'agent': initialize_agent(),
-        'chat_history': []
-    }
-    st.session_state.current_session_id = session_id
+def create_new_conversation():
+    conversation_id = str(uuid.uuid4())
+    st.session_state.current_conversation_id = conversation_id
+    st.session_state.agent = initialize_agent()
+    st.session_state.chat_history = []
     st.session_state.total_tokens = 0
     st.session_state.total_cost = 0.0
     
@@ -53,7 +53,7 @@ def create_new_session():
     
     # Add new conversation to the list
     new_conversation = {
-        'id': session_id,
+        'id': conversation_id,
         'name': short_name,
         'timestamp': datetime.now().isoformat()
     }
@@ -113,26 +113,26 @@ def main():
     # Load existing conversations
     load_conversations()
 
-    # Create a new session if there are no sessions
-    if not st.session_state.sessions:
-        create_new_session()
+    # Create a new conversation if there are no conversations
+    if not st.session_state.conversations:
+        create_new_conversation()
 
-    # Session management in the sidebar
+    # Conversation management in the sidebar
     with st.sidebar:
         st.header("Conversation Management")
         
         # Button to create a new conversation
         if st.button("New Conversation"):
-            create_new_session()
+            create_new_conversation()
         
         # Dropdown to select existing conversations
         conversation_options = [conv['name'] for conv in st.session_state.conversations]
         
         # Find the index of the current conversation, or default to 0
         current_index = 0
-        if st.session_state.current_session_id:
+        if st.session_state.current_conversation_id:
             for i, conv in enumerate(st.session_state.conversations):
-                if conv['id'] == st.session_state.current_session_id:
+                if conv['id'] == st.session_state.current_conversation_id:
                     current_index = i
                     break
         
@@ -142,26 +142,25 @@ def main():
             index=current_index
         )
         
-        selected_session_id = next(conv['id'] for conv in st.session_state.conversations if conv['name'] == selected_conversation)
+        selected_conversation_id = next(conv['id'] for conv in st.session_state.conversations if conv['name'] == selected_conversation)
         
-        if selected_session_id != st.session_state.current_session_id:
-            save_current_session()
-            load_session(selected_session_id)
+        if selected_conversation_id != st.session_state.current_conversation_id:
+            save_current_conversation()
+            load_conversation(selected_conversation_id)
             st.experimental_rerun()
         
         # Button to rename the current conversation
         new_name = st.text_input("Rename conversation")
         if st.button("Rename"):
             for conv in st.session_state.conversations:
-                if conv['id'] == st.session_state.current_session_id:
+                if conv['id'] == st.session_state.current_conversation_id:
                     conv['name'] = new_name
                     save_conversations()
                     st.experimental_rerun()
 
-    # Get the current session
-    current_session = st.session_state.sessions[st.session_state.current_session_id]
-    agent = current_session['agent']
-    chat_history = current_session['chat_history']
+    # Get the current conversation
+    agent = st.session_state.agent
+    chat_history = st.session_state.chat_history
 
     # Sidebar for settings and configurations
     with st.sidebar:
@@ -263,7 +262,7 @@ def update_conversation_name(user_input):
     
     # Update the conversation name
     for conv in st.session_state.conversations:
-        if conv['id'] == st.session_state.current_session_id:
+        if conv['id'] == st.session_state.current_conversation_id:
             conv['name'] = short_name
             save_conversations()
             break
