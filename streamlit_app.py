@@ -152,7 +152,7 @@ def main():
                 st.session_state.total_cost += cost
                 
                 # Force a rerun to update the sidebar statistics
-                st.experimental_rerun()
+                st.rerun()
 
 if __name__ == "__main__":
     main()
