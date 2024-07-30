@@ -76,42 +76,42 @@ def main():
     with st.sidebar:
         st.header("Settings and Configurations")
         
-        st.subheader("Model Settings")
-        st.text(f"Chat Model: {agent.config.chat_model.__class__.__name__}")
-        st.text(f"Utility Model: {agent.config.utility_model.__class__.__name__}")
-        st.text(f"Embeddings Model: {agent.config.embeddings_model.__class__.__name__}")
+        with st.expander("Model Settings"):
+            st.text(f"Chat Model: {agent.config.chat_model.__class__.__name__}")
+            st.text(f"Utility Model: {agent.config.utility_model.__class__.__name__}")
+            st.text(f"Embeddings Model: {agent.config.embeddings_model.__class__.__name__}")
         
-        st.subheader("Memory Settings")
-        agent.config.auto_memory_count = st.number_input(
-            "Number of automatic memory retrievals (0 or greater)",
-            value=agent.config.auto_memory_count,
-            min_value=0,
-            help="Determines the number of automatic memory retrievals the agent performs. If set to 0, no automatic memory retrieval occurs."
-        )
+        with st.expander("Memory Settings"):
+            agent.config.auto_memory_count = st.number_input(
+                "Number of automatic memory retrievals",
+                value=agent.config.auto_memory_count,
+                min_value=0,
+                help="Number of automatic memory retrievals. 0 means no automatic retrieval."
+            )
+            
+            agent.config.auto_memory_skip = st.number_input(
+                "Interactions to skip before next retrieval",
+                value=agent.config.auto_memory_skip,
+                min_value=0,
+                help="Number of interactions to skip before next automatic memory retrieval."
+            )
         
-        agent.config.auto_memory_skip = st.number_input(
-            "Interactions to skip before next memory retrieval",
-            value=agent.config.auto_memory_skip,
-            min_value=0,
-            help="Determines how many interactions to skip before performing another automatic memory retrieval."
-        )
+        with st.expander("Response Settings"):
+            agent.config.response_timeout_seconds = st.number_input(
+                "Maximum response time (seconds)",
+                value=agent.config.response_timeout_seconds,
+                min_value=1,
+                help="Maximum time allowed for the agent to generate a response before timing out."
+            )
         
-        st.subheader("Response Settings")
-        agent.config.response_timeout_seconds = st.number_input(
-            "Maximum response time (seconds)",
-            value=agent.config.response_timeout_seconds,
-            min_value=1,
-            help="Sets the maximum time allowed for the agent to generate a response before timing out."
-        )
+        with st.expander("Code Execution Settings"):
+            st.text(f"Docker Enabled: {agent.config.code_exec_docker_enabled}")
+            st.text(f"SSH Enabled: {agent.config.code_exec_ssh_enabled}")
         
-        st.subheader("Code Execution Settings")
-        st.text(f"Docker Enabled: {agent.config.code_exec_docker_enabled}")
-        st.text(f"SSH Enabled: {agent.config.code_exec_ssh_enabled}")
-        
-        st.subheader("Rate Limiting")
-        st.text(f"Requests per {agent.config.rate_limit_seconds} seconds: {agent.config.rate_limit_requests}")
-        st.text(f"Input Tokens: {agent.config.rate_limit_input_tokens}")
-        st.text(f"Output Tokens: {agent.config.rate_limit_output_tokens}")
+        with st.expander("Rate Limiting"):
+            st.text(f"Requests per {agent.config.rate_limit_seconds} seconds: {agent.config.rate_limit_requests}")
+            st.text(f"Input Tokens: {agent.config.rate_limit_input_tokens}")
+            st.text(f"Output Tokens: {agent.config.rate_limit_output_tokens}")
 
     # Display chat history
     for message in chat_history:
