@@ -127,10 +127,19 @@ def main():
         
         # Dropdown to select existing conversations
         conversation_options = [conv['name'] for conv in st.session_state.conversations]
+        
+        # Find the index of the current conversation, or default to 0
+        current_index = 0
+        if st.session_state.current_session_id:
+            for i, conv in enumerate(st.session_state.conversations):
+                if conv['id'] == st.session_state.current_session_id:
+                    current_index = i
+                    break
+        
         selected_conversation = st.selectbox(
             "Select a conversation",
             conversation_options,
-            index=conversation_options.index(next(conv['name'] for conv in st.session_state.conversations if conv['id'] == st.session_state.current_session_id)) if st.session_state.current_session_id else 0
+            index=current_index
         )
         
         selected_session_id = next(conv['id'] for conv in st.session_state.conversations if conv['name'] == selected_conversation)
