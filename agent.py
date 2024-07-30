@@ -11,9 +11,9 @@ from langchain_core.embeddings import Embeddings
 
 @dataclass
 class AgentConfig: 
-    chat_model:BaseChatModel
+    chat_model: BaseChatModel
     utility_model: BaseChatModel
-    embeddings_model:Embeddings
+    embeddings_model: Embeddings
     memory_subdir: str = ""
     auto_memory_count: int = 3
     auto_memory_skip: int = 2
@@ -37,6 +37,11 @@ class AgentConfig:
     code_exec_ssh_user: str = "root"
     code_exec_ssh_pass: str = "toor"
     additional: Dict[str, Any] = field(default_factory=dict)
+
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
     
 
 class Agent:
