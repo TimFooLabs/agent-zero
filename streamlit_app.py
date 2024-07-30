@@ -45,6 +45,46 @@ def load_conversations():
                 conversations.append(conversation_data)
     return sorted(conversations, key=lambda x: x['timestamp'], reverse=True)
 
+def show_settings():
+    st.sidebar.header("Settings")
+    
+    with st.sidebar.expander("Model Settings"):
+        st.text(f"Chat Model: {st.session_state.agent.config.chat_model.__class__.__name__}")
+        st.text(f"Utility Model: {st.session_state.agent.config.utility_model.__class__.__name__}")
+        st.text(f"Embeddings Model: {st.session_state.agent.config.embeddings_model.__class__.__name__}")
+    
+    with st.sidebar.expander("Memory Settings"):
+        st.session_state.agent.config.auto_memory_count = st.number_input(
+            "Number of automatic memory retrievals",
+            value=st.session_state.agent.config.auto_memory_count,
+            min_value=0,
+            help="Number of automatic memory retrievals. 0 means no automatic retrieval."
+        )
+        
+        st.session_state.agent.config.auto_memory_skip = st.number_input(
+            "Interactions to skip before next retrieval",
+            value=st.session_state.agent.config.auto_memory_skip,
+            min_value=0,
+            help="Number of interactions to skip before next automatic memory retrieval."
+        )
+    
+    with st.sidebar.expander("Response Settings"):
+        st.session_state.agent.config.response_timeout_seconds = st.number_input(
+            "Maximum response time (seconds)",
+            value=st.session_state.agent.config.response_timeout_seconds,
+            min_value=1,
+            help="Maximum time allowed for the agent to generate a response before timing out."
+        )
+    
+    with st.sidebar.expander("Code Execution Settings"):
+        st.text(f"Docker Enabled: {st.session_state.agent.config.code_exec_docker_enabled}")
+        st.text(f"SSH Enabled: {st.session_state.agent.config.code_exec_ssh_enabled}")
+    
+    with st.sidebar.expander("Rate Limiting"):
+        st.text(f"Requests per {st.session_state.agent.config.rate_limit_seconds} seconds: {st.session_state.agent.config.rate_limit_requests}")
+        st.text(f"Input Tokens: {st.session_state.agent.config.rate_limit_input_tokens}")
+        st.text(f"Output Tokens: {st.session_state.agent.config.rate_limit_output_tokens}")
+
 def main():
     st.title("Agent Zero Streamlit Interface")
 
@@ -57,47 +97,42 @@ def main():
         st.session_state.total_tokens = 0
     if 'total_cost' not in st.session_state:
         st.session_state.total_cost = 0.0
+    if 'current_chat' not in st.session_state:
+        st.session_state.current_chat = "New Chat"
 
-    # Sidebar for settings and configurations
+    # Sidebar for settings and chats
     with st.sidebar:
-        st.header("Settings and Configurations")
+        # Settings button
+        if st.button("Settings"):
+            st.session_state.show_settings = not st.session_state.get('show_settings', False)
         
-        with st.expander("Model Settings"):
-            st.text(f"Chat Model: {st.session_state.agent.config.chat_model.__class__.__name__}")
-            st.text(f"Utility Model: {st.session_state.agent.config.utility_model.__class__.__name__}")
-            st.text(f"Embeddings Model: {st.session_state.agent.config.embeddings_model.__class__.__name__}")
+        # Show settings if the button was clicked
+        if st.session_state.get('show_settings', False):
+            show_settings()
         
-        with st.expander("Memory Settings"):
-            st.session_state.agent.config.auto_memory_count = st.number_input(
-                "Number of automatic memory retrievals",
-                value=st.session_state.agent.config.auto_memory_count,
-                min_value=0,
-                help="Number of automatic memory retrievals. 0 means no automatic retrieval."
-            )
-            
-            st.session_state.agent.config.auto_memory_skip = st.number_input(
-                "Interactions to skip before next retrieval",
-                value=st.session_state.agent.config.auto_memory_skip,
-                min_value=0,
-                help="Number of interactions to skip before next automatic memory retrieval."
-            )
+        st.sidebar.markdown("---")
         
-        with st.expander("Response Settings"):
-            st.session_state.agent.config.response_timeout_seconds = st.number_input(
-                "Maximum response time (seconds)",
-                value=st.session_state.agent.config.response_timeout_seconds,
-                min_value=1,
-                help="Maximum time allowed for the agent to generate a response before timing out."
-            )
+        # Chats section
+        st.sidebar.subheader("Chats")
         
-        with st.expander("Code Execution Settings"):
-            st.text(f"Docker Enabled: {st.session_state.agent.config.code_exec_docker_enabled}")
-            st.text(f"SSH Enabled: {st.session_state.agent.config.code_exec_ssh_enabled}")
+        # New chat button
+        if st.sidebar.button("New Chat"):
+            st.session_state.chat_history = []
+            st.session_state.total_tokens = 0
+            st.session_state.total_cost = 0.0
+            st.session_state.current_chat = "New Chat"
         
-        with st.expander("Rate Limiting"):
-            st.text(f"Requests per {st.session_state.agent.config.rate_limit_seconds} seconds: {st.session_state.agent.config.rate_limit_requests}")
-            st.text(f"Input Tokens: {st.session_state.agent.config.rate_limit_input_tokens}")
-            st.text(f"Output Tokens: {st.session_state.agent.config.rate_limit_output_tokens}")
+        # List of past chats
+        chats = load_conversations()
+        for chat in chats:
+            if st.sidebar.button(f"Chat {chat['timestamp']}"):
+                st.session_state.chat_history = chat['chat_history']
+                st.session_state.total_tokens = chat['total_tokens']
+                st.session_state.total_cost = chat['total_cost']
+                st.session_state.current_chat = f"Chat {chat['timestamp']}"
+
+    # Display current chat name
+    st.subheader(st.session_state.current_chat)
 
     # Display chat history
     for message in st.session_state.chat_history:
