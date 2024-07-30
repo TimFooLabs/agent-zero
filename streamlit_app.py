@@ -33,9 +33,30 @@ def main():
     # Sidebar for settings
     with st.sidebar:
         st.header("Settings")
-        st.session_state.agent.config.auto_memory_count = st.number_input("Auto Memory Count", value=st.session_state.agent.config.auto_memory_count, min_value=0)
-        st.session_state.agent.config.auto_memory_skip = st.number_input("Auto Memory Skip", value=st.session_state.agent.config.auto_memory_skip, min_value=0)
-        st.session_state.agent.config.response_timeout_seconds = st.number_input("Response Timeout (seconds)", value=st.session_state.agent.config.response_timeout_seconds, min_value=1)
+        
+        st.subheader("Auto Memory Count")
+        st.session_state.agent.config.auto_memory_count = st.number_input(
+            "Number of automatic memory retrievals (0 or greater)",
+            value=st.session_state.agent.config.auto_memory_count,
+            min_value=0,
+            help="Determines the number of automatic memory retrievals the agent performs. If set to 0, no automatic memory retrieval occurs."
+        )
+        
+        st.subheader("Auto Memory Skip")
+        st.session_state.agent.config.auto_memory_skip = st.number_input(
+            "Interactions to skip before next memory retrieval",
+            value=st.session_state.agent.config.auto_memory_skip,
+            min_value=0,
+            help="Determines how many interactions to skip before performing another automatic memory retrieval."
+        )
+        
+        st.subheader("Response Timeout")
+        st.session_state.agent.config.response_timeout_seconds = st.number_input(
+            "Maximum response time (seconds)",
+            value=st.session_state.agent.config.response_timeout_seconds,
+            min_value=1,
+            help="Sets the maximum time allowed for the agent to generate a response before timing out."
+        )
 
     # Display chat history
     for message in st.session_state.chat_history:
