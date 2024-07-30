@@ -1,69 +1,49 @@
-from langchain.storage import InMemoryByteStore, LocalFileStore
-from langchain.embeddings import CacheBackedEmbeddings
 from langchain_core.embeddings import Embeddings
-
-from langchain_chroma import Chroma
 import chromadb
-from chromadb.config import Settings
-
 from . import files
-from langchain_core.documents import Document
 import uuid
-
+from typing import List, Dict, Any
 
 class VectorDB:
-
-    def __init__(self, embeddings_model:Embeddings, in_memory=False, cache_dir="./cache"):
+    def __init__(self, embeddings_model: Embeddings, cache_dir: str = "./cache"):
         print("Initializing VectorDB...")
         self.embeddings_model = embeddings_model
+        db_cache = files.get_abs_path(cache_dir, "database")
+        self.client = chromadb.PersistentClient(path=db_cache)
+        self.collection = self.client.get_or_create_collection("my_collection")
 
-        db_cache = files.get_abs_path(cache_dir,"database")
-
-        self.client =chromadb.PersistentClient(path=db_cache)
-        self.collection = self.client.create_collection("my_collection")
-        self.collection
-
-        
-    def search(self, query:str, results=2):
+    def search(self, query: str, results: int = 2) -> List[Dict[str, Any]]:
         emb = self.embeddings_model.embed_query(query)
-        res = self.collection.query(query_embeddings=[emb],n_results=results)
-        best = res["documents"][0][0] # type: ignore
-        
-    # def delete_documents(self, query):
-    #     score_limit = 1
-    #     k = 2
-    #     tot = 0
-    #     while True:
-    #         # Perform similarity search with score
-    #         docs = self.db.similarity_search_with_score(query, k=k)
+        res = self.collection.query(query_embeddings=[emb], n_results=results)
+        return [{"id": id, "document": doc, "distance": dist} 
+                for id, doc, dist in zip(res["ids"][0], res["documents"][0], res["distances"][0])]
 
-    #         # Extract document IDs and filter based on score
-    #         document_ids = [result[0].metadata["id"] for result in docs if result[1] < score_limit]
-
-    #         # Delete documents with IDs over the threshold score
-    #         if document_ids:
-    #             fnd = self.db.get(where={"id": {"$in": document_ids}})
-    #             if fnd["ids"]: self.db.delete(ids=fnd["ids"])
-    #             tot += len(fnd["ids"])
+    def delete_documents(self, query: str, score_limit: float = 0.5, batch_size: int = 10) -> int:
+        total_deleted = 0
+        while True:
+            results = self.search(query, results=batch_size)
+            ids_to_delete = [result["id"] for result in results if result["distance"] < score_limit]
             
-    #         # If fewer than K document IDs, break the loop
-    #         if len(document_ids) < k:
-    #             break
+            if not ids_to_delete:
+                break
+            
+            self.collection.delete(ids=ids_to_delete)
+            total_deleted += len(ids_to_delete)
+            
+            if len(ids_to_delete) < batch_size:
+                break
         
-    #     return tot
+        return total_deleted
 
-    def insert(self, data:str):
+    def insert(self, data: List[str]) -> List[str]:
+        ids = [str(uuid.uuid4()) for _ in data]
+        embeddings = self.embeddings_model.embed_documents(data)
         
-        id = str(uuid.uuid4())
-        emb = self.embeddings_model.embed_documents([data])[0]
-
         self.collection.add(
-            ids=[id],
-            embeddings=[emb],
-            documents=[data],
-            )
-
-        return id
+            ids=ids,
+            embeddings=embeddings,
+            documents=data,
+        )
         
-
+        return ids
 
