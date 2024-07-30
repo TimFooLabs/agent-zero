@@ -4,27 +4,11 @@ from agent import Agent, AgentConfig
 import models
 from python.helpers import files
 import os
-import uuid
 import json
 from datetime import datetime
-import re
 
 # Set the working directory
 os.chdir(files.get_abs_path("./work_dir"))
-
-# Initialize session state
-if 'current_conversation_id' not in st.session_state:
-    st.session_state.current_conversation_id = None
-if 'total_tokens' not in st.session_state:
-    st.session_state.total_tokens = 0
-if 'total_cost' not in st.session_state:
-    st.session_state.total_cost = 0.0
-if 'conversations' not in st.session_state:
-    st.session_state.conversations = []
-if 'agent' not in st.session_state:
-    st.session_state.agent = None
-if 'chat_history' not in st.session_state:
-    st.session_state.chat_history = []
 
 # Create conversations directory if it doesn't exist
 conversations_dir = files.get_abs_path("conversations")
@@ -40,124 +24,34 @@ def initialize_agent():
     )
     return Agent(number=0, config=config)
 
-def create_new_conversation():
-    conversation_id = str(uuid.uuid4())
-    st.session_state.current_conversation_id = conversation_id
-    st.session_state.agent = initialize_agent()
-    st.session_state.chat_history = []
-    st.session_state.total_tokens = 0
-    st.session_state.total_cost = 0.0
-    
-    # Generate a short name for the conversation
-    short_name = generate_short_name()
-    
-    # Add new conversation to the list
-    new_conversation = {
-        'id': conversation_id,
-        'name': short_name,
-        'timestamp': datetime.now().isoformat()
+def save_conversation(chat_history, total_tokens, total_cost):
+    timestamp = datetime.now().isoformat()
+    conversation_data = {
+        'timestamp': timestamp,
+        'chat_history': chat_history,
+        'total_tokens': total_tokens,
+        'total_cost': total_cost
     }
-    st.session_state.conversations.append(new_conversation)
-    save_conversations()
-
-def generate_short_name():
-    if st.session_state.conversations:
-        return f"Conversation {len(st.session_state.conversations) + 1}"
-    return "New Conversation"
-
-def save_conversations():
-    conversations_file = os.path.join(conversations_dir, "conversations.json")
-    with open(conversations_file, "w") as f:
-        json.dump(st.session_state.conversations, f)
+    file_name = f"conversation_{timestamp}.json"
+    with open(os.path.join(conversations_dir, file_name), "w") as f:
+        json.dump(conversation_data, f)
 
 def load_conversations():
-    conversations_file = os.path.join(conversations_dir, "conversations.json")
-    if os.path.exists(conversations_file):
-        with open(conversations_file, "r") as f:
-            st.session_state.conversations = json.load(f)
-    else:
-        st.session_state.conversations = []
-
-def save_current_conversation():
-    if st.session_state.current_conversation_id:
-        conversation_data = {
-            'id': st.session_state.current_conversation_id,
-            'chat_history': st.session_state.chat_history,
-            'total_tokens': st.session_state.total_tokens,
-            'total_cost': st.session_state.total_cost
-        }
-        file_name = f"conversation_{st.session_state.current_conversation_id}.json"
-        with open(os.path.join(conversations_dir, file_name), "w") as f:
-            json.dump(conversation_data, f)
-
-def load_conversation(conversation_id):
-    file_name = f"conversation_{conversation_id}.json"
-    file_path = os.path.join(conversations_dir, file_name)
-    if os.path.exists(file_path):
-        with open(file_path, "r") as f:
-            conversation_data = json.load(f)
-        st.session_state.chat_history = conversation_data['chat_history']
-        st.session_state.current_conversation_id = conversation_id
-        st.session_state.total_tokens = conversation_data['total_tokens']
-        st.session_state.total_cost = conversation_data['total_cost']
-        st.session_state.agent = initialize_agent()
-    else:
-        st.error(f"Conversation file not found: {file_name}")
+    conversations = []
+    for file_name in os.listdir(conversations_dir):
+        if file_name.endswith('.json'):
+            with open(os.path.join(conversations_dir, file_name), "r") as f:
+                conversation_data = json.load(f)
+                conversations.append(conversation_data)
+    return sorted(conversations, key=lambda x: x['timestamp'], reverse=True)
 
 def main():
     st.title("Agent Zero Streamlit Interface")
 
-    # Load existing conversations
-    load_conversations()
-
-    # Create a new conversation if there are no conversations
-    if not st.session_state.conversations:
-        create_new_conversation()
-
-    # Conversation management in the sidebar
-    with st.sidebar:
-        st.header("Conversation Management")
-        
-        # Button to create a new conversation
-        if st.button("New Conversation"):
-            create_new_conversation()
-        
-        # Dropdown to select existing conversations
-        conversation_options = [conv['name'] for conv in st.session_state.conversations]
-        
-        # Find the index of the current conversation, or default to 0
-        current_index = 0
-        if st.session_state.current_conversation_id:
-            for i, conv in enumerate(st.session_state.conversations):
-                if conv['id'] == st.session_state.current_conversation_id:
-                    current_index = i
-                    break
-        
-        selected_conversation = st.selectbox(
-            "Select a conversation",
-            conversation_options,
-            index=current_index
-        )
-        
-        selected_conversation_id = next(conv['id'] for conv in st.session_state.conversations if conv['name'] == selected_conversation)
-        
-        if selected_conversation_id != st.session_state.current_conversation_id:
-            save_current_conversation()
-            load_conversation(selected_conversation_id)
-            st.experimental_rerun()
-        
-        # Button to rename the current conversation
-        new_name = st.text_input("Rename conversation")
-        if st.button("Rename"):
-            for conv in st.session_state.conversations:
-                if conv['id'] == st.session_state.current_conversation_id:
-                    conv['name'] = new_name
-                    save_conversations()
-                    st.experimental_rerun()
-
-    # Get the current conversation
-    agent = st.session_state.agent
-    chat_history = st.session_state.chat_history
+    agent = initialize_agent()
+    chat_history = []
+    total_tokens = 0
+    total_cost = 0.0
 
     # Sidebar for settings and configurations
     with st.sidebar:
@@ -213,8 +107,8 @@ def main():
     # Display total token usage and cost for the session
     st.sidebar.markdown("---")
     st.sidebar.subheader("Session Statistics")
-    st.sidebar.text(f"Total Tokens: {st.session_state.total_tokens}")
-    st.sidebar.text(f"Total Cost: ${st.session_state.total_cost:.4f}")
+    st.sidebar.text(f"Total Tokens: {total_tokens}")
+    st.sidebar.text(f"Total Cost: ${total_cost:.4f}")
 
     # Chat input
     user_input = st.chat_input("Type your message here...")
@@ -223,10 +117,6 @@ def main():
         chat_history.append({"role": "user", "content": user_input})
         with st.chat_message("user"):
             st.write(user_input)
-
-        # Update conversation name if it's the first message
-        if len(chat_history) == 1:
-            update_conversation_name(user_input)
 
         # Get agent response
         with st.chat_message("assistant"):
@@ -243,26 +133,24 @@ def main():
                 st.caption(f"Model: {agent.config.chat_model.__class__.__name__} | Tokens: {tokens} | Cost: ${cost:.4f}")
                 
                 # Update session totals
-                st.session_state.total_tokens += tokens
-                st.session_state.total_cost += cost
+                total_tokens += tokens
+                total_cost += cost
                 
-                # Save the current session
-                save_current_session()
+                # Save the conversation
+                save_conversation(chat_history, total_tokens, total_cost)
                 
                 # Force a rerun to update the sidebar statistics
                 st.rerun()
 
-def update_conversation_name(user_input):
-    # Generate a short name based on the first user message
-    words = re.findall(r'\w+', user_input)
-    short_name = ' '.join(words[:3]) + '...' if len(words) > 3 else user_input
-    
-    # Update the conversation name
-    for conv in st.session_state.conversations:
-        if conv['id'] == st.session_state.current_conversation_id:
-            conv['name'] = short_name
-            save_conversations()
-            break
+    # Add a button to export all conversations
+    if st.sidebar.button("Export All Conversations"):
+        conversations = load_conversations()
+        st.sidebar.download_button(
+            label="Download Conversations",
+            data=json.dumps(conversations, indent=2),
+            file_name="all_conversations.json",
+            mime="application/json"
+        )
 
 if __name__ == "__main__":
     main()
