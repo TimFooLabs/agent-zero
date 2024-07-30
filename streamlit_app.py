@@ -41,8 +41,18 @@ def load_conversations():
     for file_name in os.listdir(conversations_dir):
         if file_name.endswith('.json'):
             with open(os.path.join(conversations_dir, file_name), "r") as f:
-                conversation_data = json.load(f)
-                conversations.append(conversation_data)
+                try:
+                    conversation_data = json.load(f)
+                    if 'timestamp' not in conversation_data:
+                        print(f"Warning: 'timestamp' key not found in {file_name}")
+                        print(f"File contents: {conversation_data}")
+                        continue
+                    conversations.append(conversation_data)
+                except json.JSONDecodeError:
+                    print(f"Error decoding JSON from file: {file_name}")
+    if not conversations:
+        print("No valid conversations found.")
+        return []
     return sorted(conversations, key=lambda x: x['timestamp'], reverse=True)
 
 def show_settings():
