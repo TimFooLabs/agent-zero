@@ -112,6 +112,8 @@ def main():
 
     # Sidebar for settings and chats
     with st.sidebar:
+        st.title("Agent Zero Streamlit UI")
+        
         # Settings button
         if st.button("Settings"):
             st.session_state.show_settings = not st.session_state.get('show_settings', False)
