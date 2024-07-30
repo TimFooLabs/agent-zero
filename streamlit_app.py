@@ -5,6 +5,7 @@ import models
 from python.helpers import files
 import os
 import uuid
+import json
 
 # Set the working directory
 os.chdir(files.get_abs_path("./work_dir"))
@@ -14,6 +15,10 @@ if 'sessions' not in st.session_state:
     st.session_state.sessions = {}
 if 'current_session_id' not in st.session_state:
     st.session_state.current_session_id = None
+if 'total_tokens' not in st.session_state:
+    st.session_state.total_tokens = 0
+if 'total_cost' not in st.session_state:
+    st.session_state.total_cost = 0.0
 
 def initialize_agent():
     config = AgentConfig(
@@ -32,6 +37,8 @@ def create_new_session():
         'chat_history': []
     }
     st.session_state.current_session_id = session_id
+    st.session_state.total_tokens = 0
+    st.session_state.total_cost = 0.0
 
 def main():
     st.title("Agent Zero Streamlit Interface")
@@ -110,6 +117,14 @@ def main():
     for message in chat_history:
         with st.chat_message(message["role"]):
             st.write(message["content"])
+            if "tokens" in message and "cost" in message:
+                st.caption(f"Tokens: {message['tokens']} | Cost: ${message['cost']:.4f}")
+
+    # Display total token usage and cost for the session
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Session Statistics")
+    st.sidebar.text(f"Total Tokens: {st.session_state.total_tokens}")
+    st.sidebar.text(f"Total Cost: ${st.session_state.total_cost:.4f}")
 
     # Chat input
     user_input = st.chat_input("Type your message here...")
@@ -122,9 +137,22 @@ def main():
         # Get agent response
         with st.chat_message("assistant"):
             with st.spinner("Agent is thinking..."):
-                response = agent.message_loop(user_input)
+                response, tokens, cost = agent.message_loop(user_input)
                 st.write(response)
-                chat_history.append({"role": "assistant", "content": response})
+                chat_history.append({
+                    "role": "assistant",
+                    "content": response,
+                    "tokens": tokens,
+                    "cost": cost
+                })
+                st.caption(f"Tokens: {tokens} | Cost: ${cost:.4f}")
+                
+                # Update session totals
+                st.session_state.total_tokens += tokens
+                st.session_state.total_cost += cost
+                
+                # Force a rerun to update the sidebar statistics
+                st.experimental_rerun()
 
 if __name__ == "__main__":
     main()

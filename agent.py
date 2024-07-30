@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 import time, importlib, inspect, os, json
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, Tuple
 from python.helpers import extract_tools, rate_limiter, files, errors
 from python.helpers.print_style import PrintStyle
 from langchain.schema import AIMessage
@@ -57,6 +57,8 @@ class Agent:
         # non-config vars
         self.number = number
         self.agent_name = f"Agent {self.number}"
+        self.total_tokens = 0
+        self.total_cost = 0.0
 
         self.system_prompt = files.read_file("./prompts/agent.system.md").replace("{", "{{").replace("}", "}}")
         self.tools_prompt = files.read_file("./prompts/agent.tools.md").replace("{", "{{").replace("}", "}}")
@@ -71,7 +73,7 @@ class Agent:
         os.chdir(files.get_abs_path("./work_dir")) #change CWD to work_dir
         
 
-    def message_loop(self, msg: str):
+    def message_loop(self, msg: str) -> Tuple[str, int, float]:
         try:
             printer = PrintStyle(italic=True, font_color="#b3ffd9", padding=False)    
             user_message = files.read_file("./prompts/fw.user_message.md", message=msg)
@@ -114,7 +116,13 @@ class Agent:
                             printer.stream(content) # output the agent response stream                
                             agent_response += content # concatenate stream into the response
 
-                    self.rate_limiter.set_output_tokens(int(len(agent_response)/4))
+                    output_tokens = int(len(agent_response)/4)
+                    self.rate_limiter.set_output_tokens(output_tokens)
+                    
+                    total_tokens = tokens + output_tokens
+                    cost = self.calculate_cost(total_tokens)
+                    self.total_tokens += total_tokens
+                    self.total_cost += cost
                     
                     if not self.handle_intervention(agent_response):
                         if self.last_message == agent_response: #if assistant_response is the same as last message in history, let him know
@@ -126,7 +134,7 @@ class Agent:
                         else: #otherwise proceed with tool
                             self.append_message(agent_response) # Append the assistant's response to the history
                             tools_result = self.process_tools(agent_response) # process tools requested in agent message
-                            if tools_result: return tools_result #break the execution if the task is done
+                            if tools_result: return tools_result, total_tokens, cost #break the execution if the task is done
 
                 # Forward errors to the LLM, maybe he can fix them
                 except Exception as e:
@@ -300,3 +308,8 @@ class Agent:
 
     def call_extension(self, name: str, **kwargs) -> Any:
         pass
+
+    def calculate_cost(self, tokens: int) -> float:
+        # Assuming $0.002 per 1K tokens for GPT-3.5-turbo
+        # You may need to adjust this based on the actual model and pricing
+        return (tokens / 1000) * 0.002
