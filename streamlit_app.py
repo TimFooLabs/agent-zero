@@ -25,7 +25,7 @@ def initialize_agent():
     return Agent(number=0, config=config)
 
 def save_conversation(chat_history, total_tokens, total_cost):
-    timestamp = datetime.now().isoformat()
+    timestamp = datetime.now().strftime("%Y-%m-%dT%H-%M-%S")
     conversation_data = {
         'timestamp': timestamp,
         'chat_history': chat_history,
