@@ -18,3 +18,4 @@ memory/*
 logs/*
 # But do not ignore the directory itself
 !logs/.gitkeep
+.aider*
