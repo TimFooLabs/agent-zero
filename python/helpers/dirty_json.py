@@ -17,7 +17,8 @@ class DirtyJson:
     def parse(self, json_string):
         self._reset()
         self.json_string = json_string
-        self.current_char = self.json_string[0]
+        self.index = self.index_of_first_brace(self.json_string) #skip any text up to the first brace
+        self.current_char = self.json_string[self.index]
         self._parse()
         return self.result
         
@@ -249,7 +250,7 @@ class DirtyJson:
         return result.strip()
 
     def _peek(self, n):
-        peek_index = self.index
+        peek_index = self.index + 1
         result = ''
         for _ in range(n):
             if peek_index < len(self.json_string):
@@ -258,3 +259,6 @@ class DirtyJson:
             else:
                 break
         return result
+
+    def index_of_first_brace(self, input_str: str) -> int:
+        return input_str.find("{")
