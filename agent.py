@@ -1,12 +1,9 @@
 import asyncio
 from dataclasses import dataclass, field
 import time, importlib, inspect, os, json
-<<<<<<< HEAD
 from typing import Any, Optional, Dict, Tuple
-=======
 from typing import Any, Optional, Dict
 import uuid
->>>>>>> 2aedd5fd9d2290f857dfa23f2b5ed656b7e8fe13
 from python.helpers import extract_tools, rate_limiter, files, errors
 from python.helpers.print_style import PrintStyle
 from langchain.schema import AIMessage
@@ -83,16 +80,13 @@ class AgentContext:
             
 @dataclass
 class AgentConfig: 
-<<<<<<< HEAD
     chat_model: BaseChatModel
     utility_model: BaseChatModel
     embeddings_model: Embeddings
-=======
     chat_model: BaseChatModel | BaseLLM
     utility_model: BaseChatModel | BaseLLM
     embeddings_model:Embeddings
     prompts_subdir: str = ""
->>>>>>> 2aedd5fd9d2290f857dfa23f2b5ed656b7e8fe13
     memory_subdir: str = ""
     knowledge_subdir: str = ""
     auto_memory_count: int = 3
@@ -118,13 +112,11 @@ class AgentConfig:
     code_exec_ssh_pass: str = "toor"
     additional: Dict[str, Any] = field(default_factory=dict)
 
-<<<<<<< HEAD
     def update(self, **kwargs):
         for key, value in kwargs.items():
             if hasattr(self, key):
                 setattr(self, key, value)
     
-=======
 # intervention exception class - skips rest of message loop iteration
 class InterventionException(Exception):
     pass
@@ -132,7 +124,6 @@ class InterventionException(Exception):
 # killer exception class - not forwarded to LLM, cannot be fixed on its own, ends message loop
 class KillerException(Exception):
     pass
->>>>>>> 2aedd5fd9d2290f857dfa23f2b5ed656b7e8fe13
 
 class Agent:
     
@@ -156,14 +147,11 @@ class Agent:
         self.rate_limiter = rate_limiter.RateLimiter(self.context.log,max_calls=self.config.rate_limit_requests,max_input_tokens=self.config.rate_limit_input_tokens,max_output_tokens=self.config.rate_limit_output_tokens,window_seconds=self.config.rate_limit_seconds)
         self.data = {} # free data object all the tools can use
 
-<<<<<<< HEAD
         os.chdir(files.get_abs_path("./work_dir")) #change CWD to work_dir
         
 
     def message_loop(self, msg: str) -> Tuple[str, int, float]:
-=======
     async def message_loop(self, msg: str):
->>>>>>> 2aedd5fd9d2290f857dfa23f2b5ed656b7e8fe13
         try:
             printer = PrintStyle(italic=True, font_color="#b3ffd9", padding=False)    
             user_message = self.read_prompt("fw.user_message.md", message=msg)
@@ -207,7 +195,6 @@ class Agent:
                             agent_response += content # concatenate stream into the response
                             self.log_from_stream(agent_response, log)
 
-<<<<<<< HEAD
                     output_tokens = int(len(agent_response)/4)
                     self.rate_limiter.set_output_tokens(output_tokens)
                     
@@ -215,9 +202,7 @@ class Agent:
                     cost = self.calculate_cost(total_tokens)
                     self.total_tokens += total_tokens
                     self.total_cost += cost
-=======
                     self.rate_limiter.set_output_tokens(int(len(agent_response)/4)) # rough estimation
->>>>>>> 2aedd5fd9d2290f857dfa23f2b5ed656b7e8fe13
                     
                     await self.handle_intervention(agent_response)
 
