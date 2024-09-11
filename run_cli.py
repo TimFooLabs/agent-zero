@@ -158,9 +158,14 @@ def timeout_input(prompt, timeout=10):
 if __name__ == "__main__":
     print("Initializing framework...")
 
+    # initialize context
+    config = initialize()
+    context = AgentContext(config)
+
     # Start the key capture thread for user intervention during agent streaming
     threading.Thread(target=capture_keys, daemon=True).start()
 
+<<<<<<< HEAD
 <<<<<<< HEAD:main.py
     # Initialize the agent
     agent = initialize()
@@ -178,3 +183,7 @@ if __name__ == "__main__":
     context = AgentContext(config)
     asyncio.run(chat(context))
 >>>>>>> 2aedd5fd9d2290f857dfa23f2b5ed656b7e8fe13:run_cli.py
+=======
+    #start the chat
+    asyncio.run(chat(context))
+>>>>>>> 4066a24c7fde89e211f547b81231b8a6d23919e1
